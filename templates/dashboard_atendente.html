@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block titulo %}Painel Atendente — ModaAtende{% endblock %}
+
+{% block conteudo %}
+
+<!-- Cabeçalho -->
+<div class="cabecalho-pagina animar">
+  <h1 class="titulo-pagina">Olá, <span class="destaque">{{ session.nome.split()[0] }}!</span></h1>
+  <p class="subtitulo-pagina">Gerencie seus tickets de atendimento abaixo.</p>
+</div>
+
+<!-- Stats rápidas -->
+<div class="grade-stats">
+  <div class="stat animar atraso-1">
+    <p class="stat-rotulo">🎫 Meus Tickets</p>
+    <p class="stat-numero">{{ meus_tickets | length }}</p>
+  </div>
+  <div class="stat amarelo animar atraso-2">
+    <p class="stat-rotulo">⏳ Em Andamento</p>
+    <p class="stat-numero">
+      {{ meus_tickets | selectattr('status','equalto','Em Andamento') | list | length }}
+    </p>
+  </div>
+  <div class="stat azul animar atraso-3">
+    <p class="stat-rotulo">📬 Sem Atendente</p>
+    <p class="stat-numero">{{ sem_atendente | length }}</p>
+  </div>
+</div>
+
+<!-- Tickets sem atendente (disponíveis para assumir) -->
+{% if sem_atendente %}
+<div class="cartao-tabela animar atraso-2" style="margin-bottom:24px;">
+  <div class="tabela-cabecalho">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="alerta-pulsando"></div>
+      <h2 class="tabela-titulo">Aguardando Atendimento</h2>
+    </div>
+    <span class="tabela-meta">{{ sem_atendente|length }} aberto(s)</span>
+  </div>
+
+  <div class="lista-tickets" style="padding:16px;">
+    {% for t in sem_atendente %}
+    <div class="ticket animar">
+      <div class="ticket-corpo">
+        <div class="status-icone aberto">📬</div>
+        <div class="ticket-info">
+          <div class="ticket-meta">
+            <span class="ticket-id">#{{ t.id }}</span>
+            <span class="badge badge-aberto">Aberto</span>
+          </div>
+          <p style="font-size:13px; color:var(--texto-suave); margin-bottom:6px;">
+            Cliente: <strong>{{ t.cliente.nome }}</strong>
+          </p>
+          <p class="ticket-desc">{{ t.descricao }}</p>
+          <p class="ticket-rodape">📅 {{ t.data_criacao.strftime('%d/%m/%Y às %H:%M') }}</p>
+        </div>
+        <!-- Botão para assumir o ticket -->
+        <form method="POST" action="{{ url_for('assumir_atendimento', id=t.id) }}">
+          <button type="submit" class="btn btn-primario btn-pequeno">Assumir</button>
+        </form>
+      </div>
+      <div class="ticket-progresso">
+        <div class="ticket-progresso-barra aberto"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Meus tickets atribuídos -->
+<div class="cartao-tabela animar atraso-3">
+  <div class="tabela-cabecalho">
+    <h2 class="tabela-titulo">Meus Tickets</h2>
+    <span class="tabela-meta">{{ meus_tickets|length }} atribuído(s)</span>
+  </div>
+
+  {% if meus_tickets %}
+  <div class="lista-tickets" style="padding:16px;">
+    {% for t in meus_tickets %}
+    <div class="ticket">
+      <div class="ticket-corpo">
+
+        <!-- Ícone de status -->
+        <div class="status-icone {{ t.status | lower | replace(' ', '') }}">
+          {% if t.status == 'Aberto' %}📬
+          {% elif t.status == 'Em Andamento' %}⏳
+          {% else %}✅{% endif %}
+        </div>
+
+        <div class="ticket-info">
+          <div class="ticket-meta">
+            <span class="ticket-id">#{{ t.id }}</span>
+            {% if t.status == 'Aberto' %}
+              <span class="badge badge-aberto">Aberto</span>
+            {% elif t.status == 'Em Andamento' %}
+              <span class="badge badge-andamento">Em Andamento</span>
+            {% else %}
+              <span class="badge badge-concluido">Concluído</span>
+            {% endif %}
+          </div>
+          <p style="font-size:13px; color:var(--texto-suave); margin-bottom:6px;">
+            Cliente: <strong>{{ t.cliente.nome }}</strong>
+          </p>
+          <p class="ticket-desc">{{ t.descricao }}</p>
+          <p class="ticket-rodape">📅 {{ t.data_criacao.strftime('%d/%m/%Y às %H:%M') }}</p>
+        </div>
+
+        <a href="{{ url_for('editar_atendimento', id=t.id) }}"
+           class="btn btn-secundario btn-pequeno">Editar</a>
+      </div>
+
+      <!-- Barra de progresso -->
+      <div class="ticket-progresso">
+        {% if t.status == 'Aberto' %}
+          <div class="ticket-progresso-barra aberto"></div>
+        {% elif t.status == 'Em Andamento' %}
+          <div class="ticket-progresso-barra andamento"></div>
+        {% else %}
+          <div class="ticket-progresso-barra concluido"></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="tabela-vazia">
+    <div class="icone-vazio">✅</div>
+    <p>Você não tem tickets atribuídos no momento.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

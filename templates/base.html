@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModaAtende - Sistema de Atendimento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>ModaAtende</h2>
+                <p>Sistema de Atendimento</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item">
+                    📊 Dashboard
+                </a>
+                
+                {% if session.cargo == 'Cliente' %}
+                <a href="{{ url_for('novo_atendimento') }}" class="nav-item">
+                    ✨ Novo Atendimento
+                </a>
+                {% endif %}
+                
+                {% if session.cargo in ['Atendente', 'Administrador'] %}
+                <a href="{{ url_for('listar_produtos') }}" class="nav-item">
+                    📦 Controle de Estoque
+                </a>
+                {% endif %}
+                
+                {% if session.cargo == 'Administrador' %}
+                <a href="{{ url_for('listar_usuarios') }}" class="nav-item">
+                    👥 Usuários
+                </a>
+                {% endif %}
+                
+                <a href="{{ url_for('logout') }}" class="nav-item logout">
+                    🚪 Sair
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                <div class="user-info">
+                    <span>Bem-vinda, {{ session.nome }}</span>
+                    <small>({{ session.cargo }})</small>
+                </div>
+                <button class="dark-mode-toggle" id="darkModeToggle">🌙</button>
+            </div>
+
+            <div class="content-wrapper">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- APENAS UM BLOCK conteudo AQUI -->
+                {% block conteudo %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

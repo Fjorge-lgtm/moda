@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block titulo %}Novo Usuário — ModaAtende{% endblock %}
+
+{% block conteudo %}
+
+<!-- Cabeçalho da página -->
+<div class="cabecalho-pagina animar">
+  <a href="{{ url_for('listar_usuarios') }}" class="voltar">← Voltar para Usuários</a>
+  <h1 class="titulo-pagina">Novo <span class="destaque">Usuário</span></h1>
+  <p class="subtitulo-pagina">Preencha os dados para cadastrar um novo membro no sistema.</p>
+</div>
+
+<!-- Card do formulário -->
+<div class="cartao-form animar atraso-1">
+
+  <!-- Explicação dos cargos para o administrador -->
+  <div style="background:var(--rosa-claro); border:1px solid var(--rosa-borda);
+              border-radius:var(--raio-sm); padding:14px 16px; margin-bottom:24px;">
+    <p style="font-size:12px; font-weight:700; color:var(--rosa-hover);
+              text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;">
+      📋 Sobre os Cargos
+    </p>
+    <div style="font-size:13px; color:var(--texto-suave); display:flex;
+                flex-direction:column; gap:5px;">
+      <p>👑 <strong>Administrador</strong> — Acesso total: gerencia usuários e todos os tickets.</p>
+      <p>🎧 <strong>Atendente</strong> — Gerencia tickets e atende clientes.</p>
+      <p>🛍️ <strong>Cliente</strong> — Abre e acompanha seus próprios atendimentos.</p>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('novo_usuario') }}"
+        id="formNovoUsuario" novalidate>
+    <div class="pilha">
+
+      <!-- Nome completo -->
+      <div class="campo">
+        <label class="label" for="nome">
+          Nome Completo <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">👤</span>
+          <input
+            type="text"
+            id="nome"
+            name="nome"
+            class="input"
+            placeholder="Ex: Juliana Souza"
+            required
+            minlength="3"
+            autocomplete="name"
+          />
+        </div>
+      </div>
+
+      <!-- E-mail -->
+      <div class="campo">
+        <label class="label" for="email">
+          E-mail <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">📧</span>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="input"
+            placeholder="Ex: juliana@loja.com"
+            required
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <!-- Senha -->
+      <div class="campo">
+        <label class="label" for="senha">
+          Senha <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">🔒</span>
+          <input
+            type="password"
+            id="senha"
+            name="senha"
+            class="input"
+            placeholder="Mínimo 6 caracteres"
+            required
+            minlength="6"
+            autocomplete="new-password"
+          />
+        </div>
+        <p class="dica">Use pelo menos 6 caracteres.</p>
+      </div>
+
+      <!-- Cargo -->
+      <div class="campo">
+        <label class="label" for="cargo">
+          Cargo <span class="obrig">*</span>
+        </label>
+        <div class="campo-select">
+          <select id="cargo" name="cargo" class="input" required>
+            <option value="Cliente">🛍️ Cliente</option>
+            <option value="Atendente">🎧 Atendente</option>
+            <option value="Administrador">👑 Administrador</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="linha-separadora" />
+
+      <!-- Botões de ação -->
+      <div class="form-acoes">
+        <button type="submit" class="btn btn-primario">
+          ➕ Criar Usuário
+        </button>
+        <a href="{{ url_for('listar_usuarios') }}" class="btn btn-secundario">
+          Cancelar
+        </a>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+
+{% block js_extra %}
+<script>
+  /*
+   * Validação extra no lado do cliente para o formulário de novo usuário.
+   * A validação principal acontece no servidor (app.py),
+   * mas esta ajuda a dar um retorno mais rápido ao usuário.
+   */
+  document.getElementById('formNovoUsuario').addEventListener('submit', function(e) {
+
+    var nome  = document.getElementById('nome').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var senha = document.getElementById('senha').value;
+
+    // Verifica nome
+    if (nome.length < 3) {
+      e.preventDefault();
+      alert('O nome deve ter pelo menos 3 caracteres.');
+      document.getElementById('nome').focus();
+      return;
+    }
+
+    // Verifica e-mail com expressão regular simples
+    var regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regexEmail.test(email)) {
+      e.preventDefault();
+      alert('Digite um e-mail válido.');
+      document.getElementById('email').focus();
+      return;
+    }
+
+    // Verifica senha
+    if (senha.length < 6) {
+      e.preventDefault();
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      document.getElementById('senha').focus();
+      return;
+    }
+  });
+</script>
+{% endblock %}

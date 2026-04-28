@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block titulo %}Novo Atendimento — ModaAtende{% endblock %}
+
+{% block conteudo %}
+<div class="cabecalho-pagina animar">
+  <a href="{{ url_for('dashboard') }}" class="voltar">← Voltar</a>
+  <h1 class="titulo-pagina">Novo <span class="destaque">Atendimento</span></h1>
+  <p class="subtitulo-pagina">Descreva sua solicitação e nossa equipe responderá em breve.</p>
+</div>
+
+<div class="cartao-form animar atraso-1">
+  <form method="POST" action="{{ url_for('novo_atendimento') }}" id="formAtendimento">
+    <div class="pilha">
+
+      <!-- Seletor de tipo de solicitação -->
+      <div class="campo">
+        <p class="label">Tipo de Solicitação</p>
+        <div class="seletor-tipo">
+          <button type="button" class="tipo-btn" data-tipo="Troca"
+                  onclick="selecionarTipo('Troca')">🔄 Troca</button>
+          <button type="button" class="tipo-btn" data-tipo="Devolução"
+                  onclick="selecionarTipo('Devolução')">↩️ Devolução</button>
+          <button type="button" class="tipo-btn" data-tipo="Defeito"
+                  onclick="selecionarTipo('Defeito')">⚠️ Defeito</button>
+          <button type="button" class="tipo-btn" data-tipo="Entrega"
+                  onclick="selecionarTipo('Entrega')">📦 Entrega</button>
+          <button type="button" class="tipo-btn" data-tipo="Dúvida"
+                  onclick="selecionarTipo('Dúvida')">❓ Dúvida</button>
+          <button type="button" class="tipo-btn" data-tipo="Outro"
+                  onclick="selecionarTipo('Outro')">💬 Outro</button>
+        </div>
+        <!-- Campo oculto que guarda o tipo selecionado -->
+        <input type="hidden" id="tipoSelecionado" name="tipo" value="" />
+      </div>
+
+      <!-- Campo de descrição -->
+      <div class="campo">
+        <label class="label" for="descricao">
+          Descreva sua solicitação <span class="obrig">*</span>
+        </label>
+        <textarea
+          id="descricao"
+          name="descricao"
+          class="input"
+          rows="6"
+          placeholder="Ex: Comprei uma blusa tamanho M na última semana e gostaria de trocar pelo tamanho G..."
+          oninput="contarCaracteres(this, 'contadorChars', 500)"
+          required
+        ></textarea>
+        <div class="contagem-chars">
+          <span id="contadorChars">0</span> / 500 caracteres
+        </div>
+        <p class="dica">💡 Quanto mais detalhes, mais rápido conseguimos ajudar!</p>
+      </div>
+
+      <!-- Botões -->
+      <div class="form-acoes">
+        <button type="submit" class="btn btn-primario">✉️ Enviar Solicitação</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secundario">Cancelar</a>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

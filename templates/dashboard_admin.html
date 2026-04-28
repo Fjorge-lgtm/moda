@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block titulo %}Painel Admin — ModaAtende{% endblock %}
+
+{% block conteudo %}
+
+<!-- Cabeçalho da página -->
+<div class="cabecalho-pagina animar">
+  <h1 class="titulo-pagina">Painel <span class="destaque">Administrativo</span></h1>
+  <p class="subtitulo-pagina">Visão completa do sistema de atendimento</p>
+</div>
+
+<!-- Cards de estatísticas -->
+<div class="grade-stats">
+
+  <div class="stat rosa animar atraso-1">
+    <p class="stat-rotulo">👥 Usuários</p>
+    <p class="stat-numero">{{ total_usuarios }}</p>
+    <p class="stat-sub">cadastrados</p>
+  </div>
+
+  <div class="stat animar atraso-1">
+    <p class="stat-rotulo">🎫 Total</p>
+    <p class="stat-numero">{{ total_atendimentos }}</p>
+    <p class="stat-sub">tickets</p>
+  </div>
+
+  <div class="stat azul animar atraso-2">
+    <p class="stat-rotulo">📬 Abertos</p>
+    <p class="stat-numero">{{ qtd_abertos }}</p>
+    <p class="stat-sub">aguardando</p>
+  </div>
+
+  <div class="stat amarelo animar atraso-3">
+    <p class="stat-rotulo">⏳ Andamento</p>
+    <p class="stat-numero">{{ qtd_andamento }}</p>
+    <p class="stat-sub">em progresso</p>
+  </div>
+
+  <div class="stat verde animar atraso-4">
+    <p class="stat-rotulo">✅ Concluídos</p>
+    <p class="stat-numero">{{ qtd_concluidos }}</p>
+    <p class="stat-sub">finalizados</p>
+  </div>
+
+</div>
+
+<!-- Barra de progresso dos tickets -->
+{% if total_atendimentos > 0 %}
+<div class="progresso-card animar atraso-3">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <p class="stat-rotulo">Distribuição dos Tickets</p>
+    <span style="font-size:12px; color:var(--texto-fraco);">{{ total_atendimentos }} total</span>
+  </div>
+
+  <div class="progresso-trilha">
+    {% if qtd_abertos > 0 %}
+    <div class="segmento azul"
+         style="width:{{ (qtd_abertos / total_atendimentos * 100)|round }}%"></div>
+    {% endif %}
+    {% if qtd_andamento > 0 %}
+    <div class="segmento amarelo"
+         style="width:{{ (qtd_andamento / total_atendimentos * 100)|round }}%"></div>
+    {% endif %}
+    {% if qtd_concluidos > 0 %}
+    <div class="segmento verde"
+         style="width:{{ (qtd_concluidos / total_atendimentos * 100)|round }}%"></div>
+    {% endif %}
+  </div>
+
+  <div class="legenda">
+    <div class="legenda-item"><div class="legenda-ponto azul"></div> Aberto</div>
+    <div class="legenda-item"><div class="legenda-ponto amarelo"></div> Em Andamento</div>
+    <div class="legenda-item"><div class="legenda-ponto verde"></div> Concluído</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Botões de ação rápida -->
+<div class="grupo-botoes animar atraso-3" style="margin-bottom:24px;">
+  <a href="{{ url_for('listar_usuarios') }}" class="btn btn-primario">👥 Gerenciar Usuários</a>
+  <a href="{{ url_for('novo_atendimento') }}" class="btn btn-secundario">✉️ Abrir Ticket</a>
+</div>
+
+<!-- Tabela dos últimos atendimentos -->
+<div class="cartao-tabela animar atraso-4">
+  <div class="tabela-cabecalho">
+    <h2 class="tabela-titulo">Atendimentos Recentes</h2>
+    <span class="tabela-meta">Últimos 10 registros</span>
+  </div>
+
+  {% if recentes %}
+  <div class="tabela-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th class="oculto-mobile">Atendente</th>
+          <th class="oculto-mobile">Descrição</th>
+          <th>Status</th>
+          <th class="oculto-mobile">Data</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recentes %}
+        <tr>
+          <td class="td-mono">#{{ a.id }}</td>
+          <td>{{ a.cliente.nome }}</td>
+          <td class="td-suave oculto-mobile">
+            {{ a.atendente.nome if a.atendente else '—' }}
+          </td>
+          <td class="td-suave oculto-mobile" style="max-width:200px;">
+            {{ a.descricao[:50] }}{% if a.descricao|length > 50 %}…{% endif %}
+          </td>
+          <td>
+            {% if a.status == 'Aberto' %}
+              <span class="badge badge-aberto">Aberto</span>
+            {% elif a.status == 'Em Andamento' %}
+              <span class="badge badge-andamento">Em Andamento</span>
+            {% else %}
+              <span class="badge badge-concluido">Concluído</span>
+            {% endif %}
+          </td>
+          <td class="td-suave oculto-mobile">
+            {{ a.data_criacao.strftime('%d/%m/%Y') }}
+          </td>
+          <td class="td-acoes">
+            <div class="acoes-grupo">
+              <a href="{{ url_for('editar_atendimento', id=a.id) }}"
+                 class="btn-icone" title="Editar">✏️</a>
+              <form method="POST"
+                    action="{{ url_for('excluir_atendimento', id=a.id) }}"
+                    data-confirmar="Excluir o ticket #{{ a.id }}?">
+                <button type="submit" class="btn-icone" title="Excluir">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="tabela-vazia">
+    <div class="icone-vazio">🎫</div>
+    <p>Nenhum atendimento encontrado.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

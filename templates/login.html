@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Login — ModaAtende{% endblock %}
+
+{% block conteudo %}
+<div class="pagina-login">
+  <div class="caixa-login">
+
+    <!-- Marca da loja -->
+    <div class="login-marca animar">
+      <div class="login-icone">👗</div>
+      <h1 class="login-titulo">ModaAtende</h1>
+      <p class="login-subtitulo">Sistema de Atendimento</p>
+    </div>
+
+    <!-- Card de login -->
+    <div class="login-cartao animar atraso-1">
+      <h2 class="login-subtitulo-cartao">Entrar no sistema</h2>
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="pilha">
+
+          <!-- E-mail -->
+          <div class="campo">
+            <label class="label" for="email">E-mail</label>
+            <div class="campo-icone">
+              <span class="icone-input">📧</span>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                class="input"
+                placeholder="seu@email.com"
+                required
+                autocomplete="email"
+              />
+            </div>
+          </div>
+
+          <!-- Senha -->
+          <div class="campo">
+            <label class="label" for="senha">Senha</label>
+            <div class="campo-icone">
+              <span class="icone-input">🔒</span>
+              <input
+                type="password"
+                id="senha"
+                name="senha"
+                class="input"
+                placeholder="••••••••"
+                required
+                autocomplete="current-password"
+              />
+            </div>
+          </div>
+
+          <!-- Botão entrar -->
+          <button type="submit" class="btn btn-primario" style="width:100%;justify-content:center;padding:12px;">
+            Entrar &rarr;
+          </button>
+
+        </div>
+      </form>
+
+      <!-- Credenciais de demonstração -->
+      <div class="demo-painel">
+        <p class="demo-titulo">🔑 Credenciais de demonstração</p>
+        <div class="demo-lista">
+          <div class="demo-linha">
+            <span class="demo-cargo">Administrador:</span>
+            <span class="demo-cred">admin@loja.com / admin123</span>
+          </div>
+          <div class="demo-linha">
+            <span class="demo-cargo">Atendente:</span>
+            <span class="demo-cred">juliana@loja.com / atend123</span>
+          </div>
+          <div class="demo-linha">
+            <span class="demo-cargo">Cliente:</span>
+            <span class="demo-cred">beatriz@email.com / cli123</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botão de alternar tema -->
+    <div class="theme-toggle-login">
+      <button class="btn-theme" onclick="alternarTema()">
+        <span class="icone-sol">🌙</span>
+        <span class="icone-lua">☀️</span>
+        <span data-tema-label>Modo Escuro</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

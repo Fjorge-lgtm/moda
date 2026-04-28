@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block titulo %}Editar Produto — ModaAtende{% endblock %}
+
+{% block conteudo %}
+
+<!-- Cabeçalho da página -->
+<div class="cabecalho-pagina animar">
+  <a href="{{ url_for('listar_produtos') }}" class="voltar">← Voltar para Estoque</a>
+
+  <!-- Linha com título e badge da categoria -->
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <h1 class="titulo-pagina">Editar <span class="destaque">Produto</span></h1>
+    {% if p.categoria == 'bolsas' %}
+      <span class="badge rosa">👜 Bolsas</span>
+    {% elif p.categoria == 'sapatos' %}
+      <span class="badge azul">👠 Sapatos</span>
+    {% else %}
+      <span class="badge amarelo">🪢 Cintos</span>
+    {% endif %}
+  </div>
+
+  <p class="subtitulo-pagina">
+    Editando: <strong>{{ p.nome }}</strong> —
+    Cadastrado em {{ p.data_cadastro.strftime('%d/%m/%Y') }}
+  </p>
+</div>
+
+<!-- Card do formulário -->
+<div class="cartao-form animar atraso-1">
+
+  <form method="POST" action="{{ url_for('editar_produto', id=p.id) }}"
+        id="formEditarProduto" novalidate>
+    <div class="pilha">
+
+      <!-- Nome do produto -->
+      <div class="campo">
+        <label class="label" for="nome">
+          Nome do Produto <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">📦</span>
+          <input
+            type="text"
+            id="nome"
+            name="nome"
+            class="input"
+            value="{{ p.nome }}"
+            required
+            minlength="3"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <!-- Categoria -->
+      <div class="campo">
+        <label class="label" for="categoria">
+          Categoria <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">🏷️</span>
+          <select id="categoria" name="categoria" class="input" required>
+            <option value="bolsas" {% if p.categoria == 'bolsas' %}selected{% endif %}>Bolsas</option>
+            <option value="sapatos" {% if p.categoria == 'sapatos' %}selected{% endif %}>Sapatos</option>
+            <option value="cintos" {% if p.categoria == 'cintos' %}selected{% endif %}>Cintos</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quantidade -->
+      <div class="campo">
+        <label class="label" for="quantidade">
+          Quantidade em Estoque
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">🔢</span>
+          <input
+            type="number"
+            id="quantidade"
+            name="quantidade"
+            class="input"
+            value="{{ p.quantidade }}"
+            min="0"
+          >
+        </div>
+      </div>
+
+      <!-- Preço -->
+      <div class="campo">
+        <label class="label" for="preco">
+          Preço (R$) <span class="obrig">*</span>
+        </label>
+        <div class="campo-icone">
+          <span class="icone-input">💰</span>
+          <input
+            type="number"
+            id="preco"
+            name="preco"
+            class="input"
+            value="{{ p.preco }}"
+            step="0.01"
+            min="0"
+            required
+          >
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Botões -->
+    <div class="botoes-form">
+      <a href="{{ url_for('listar_produtos') }}" class="btn btn-secundario">
+        ❌ Cancelar
+      </a>
+      <button type="submit" class="btn btn-primario">
+        💾 Salvar Alterações
+      </button>
+    </div>
+  </form>
+
+</div>
+
+{% endblock %}
