@@ -12,6 +12,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
 from sqlalchemy import func, extract
+from sqlalchemy.exc import IntegrityError
+import re
 import os
 
 # -------------------------------------------------------------
@@ -319,6 +321,17 @@ def novo_usuario():
             flash('Preencha todos os campos.', 'erro')
             return redirect(url_for('novo_usuario'))
 
+        if len(senha) < 6:
+            flash('A senha deve ter pelo menos 6 caracteres.', 'erro')
+            return redirect(url_for('novo_usuario'))
+
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            flash('E-mail inválido.', 'erro')
+            return redirect(url_for('novo_usuario'))
+
+        if cargo not in ['Cliente', 'Atendente', 'Administrador']:
+            cargo = 'Cliente'
+
         if Usuario.query.filter_by(email=email).first():
             flash('E-mail já cadastrado.', 'erro')
             return redirect(url_for('novo_usuario'))
@@ -326,7 +339,13 @@ def novo_usuario():
         u = Usuario(nome=nome, email=email, cargo=cargo)
         u.set_senha(senha)
         db.session.add(u)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Erro ao criar o usuário. Verifique os dados e tente novamente.', 'erro')
+            return redirect(url_for('novo_usuario'))
+
         flash(f'Usuário {nome} criado!', 'sucesso')
         return redirect(url_for('listar_usuarios'))
 
