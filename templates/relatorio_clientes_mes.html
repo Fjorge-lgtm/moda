@@ -76,7 +76,8 @@
 
     <!-- Tabela de Clientes Atendidos -->
     <section class="clientes-section">
-        <h3>🎯 Clientes Atendidos em {{ mes_nome }}/{{ ano }}</h3>
+        <h3>🎯 Clientes Atendidos até {{ mes_nome }}/{{ ano }}</h3>
+        <p class="relatorio-aviso">Os valores são acumulados desde o início do ano até o mês selecionado.</p>
         
         {% if atendimentos %}
             <div class="table-responsive">
@@ -294,6 +295,12 @@
     color: #333;
     font-size: 1.3rem;
     margin-bottom: 20px;
+}
+
+.relatorio-aviso {
+    color: #555;
+    margin: -10px 0 20px;
+    font-size: 0.95rem;
 }
 
 .table-responsive {

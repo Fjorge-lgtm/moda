@@ -12,7 +12,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
 from sqlalchemy import func, extract
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
+import calendar
 import re
 import os
 
@@ -185,8 +187,10 @@ def painel_admin():
         qtd_abertos        = Atendimento.query.filter_by(status='Aberto').count(),
         qtd_andamento      = Atendimento.query.filter_by(status='Em Andamento').count(),
         qtd_concluidos     = Atendimento.query.filter_by(status='Concluido').count(),
-        recentes           = Atendimento.query.order_by(
-                                 Atendimento.data_criacao.desc()).limit(10).all(),
+        recentes           = Atendimento.query.options(
+                                joinedload(Atendimento.cliente),
+                                joinedload(Atendimento.atendente)
+                            ).order_by(Atendimento.data_criacao.desc()).limit(10).all(),
     )
 
 
@@ -224,6 +228,8 @@ def painel_cliente():
 @login_obrigatorio
 def novo_atendimento():
     """Cria um novo ticket de atendimento."""
+    usuario = Usuario.query.get(session['usuario_id'])
+    
     if request.method == 'POST':
         descricao = request.form.get('descricao', '').strip()
         if len(descricao) < 10:
@@ -239,7 +245,7 @@ def novo_atendimento():
         flash('Atendimento aberto com sucesso!', 'sucesso')
         return redirect(url_for('dashboard'))
 
-    return render_template('novo_atendimento.html')
+    return render_template('novo_atendimento.html', cliente_nome=usuario.nome)
 
 
 @app.route('/atendimentos/<int:id>/editar', methods=['GET', 'POST'])
@@ -479,7 +485,11 @@ def relatorio_clientes_atendidos():
     if ano < 2020 or ano > hoje.year + 1:
         ano = hoje.year
     
-    # Query: Clientes atendidos naquele mês (com status 'Concluido')
+    # Query: Clientes atendidos acumulados desde o início do ano até o mês selecionado (status 'Concluido')
+    inicio_periodo = datetime(ano, 1, 1)
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    fim_periodo = datetime(ano, mes, ultimo_dia, 23, 59, 59)
+
     atendimentos_mes = db.session.query(
         Atendimento.cliente_id,
         Usuario.nome,
@@ -488,8 +498,8 @@ def relatorio_clientes_atendidos():
         func.min(Atendimento.data_criacao).label('primeiro_atendimento'),
         func.max(Atendimento.data_criacao).label('ultimo_atendimento')
     ).join(Usuario, Atendimento.cliente_id == Usuario.id).filter(
-        extract('month', Atendimento.data_criacao) == mes,
-        extract('year', Atendimento.data_criacao) == ano,
+        Atendimento.data_criacao >= inicio_periodo,
+        Atendimento.data_criacao <= fim_periodo,
         Atendimento.status == 'Concluido'
     ).group_by(Atendimento.cliente_id, Usuario.nome, Usuario.email).order_by(
         func.count(Atendimento.id).desc()
