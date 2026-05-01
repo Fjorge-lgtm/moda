@@ -123,7 +123,7 @@
             {% endif %}
           </td>
           <td class="td-suave oculto-mobile">
-            {{ a.data_criacao.strftime('%d/%m/%Y') }}
+            {{ a.data_criacao.strftime('%d/%m/%Y') if a.data_criacao else '-' }}
           </td>
           <td class="td-acoes">
             <div class="acoes-grupo">

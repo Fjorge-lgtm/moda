@@ -10,7 +10,7 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, extract
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
@@ -43,7 +43,7 @@ class Usuario(db.Model):
     senha_hash    = db.Column(db.String(256), nullable=False)
     cargo         = db.Column(db.String(20), nullable=False, default='Cliente')
     ocorrencia    = db.Column(db.String(50), nullable=True)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     atendimentos_cliente   = db.relationship(
         'Atendimento', foreign_keys='Atendimento.cliente_id',
@@ -72,9 +72,9 @@ class Atendimento(db.Model):
     atendente_id     = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     descricao        = db.Column(db.Text, nullable=False)
     status           = db.Column(db.String(20), nullable=False, default='Aberto')
-    data_criacao     = db.Column(db.DateTime, default=datetime.utcnow)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow,
-                                 onupdate=datetime.utcnow)
+    data_criacao     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    data_atualizacao = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                                 onupdate=lambda: datetime.now(timezone.utc))
 
 
 class Produto(db.Model):
@@ -86,7 +86,7 @@ class Produto(db.Model):
     categoria   = db.Column(db.String(50), nullable=False)  # bolsas, sapatos, cintos
     quantidade  = db.Column(db.Integer, nullable=False, default=0)
     preco       = db.Column(db.Float, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # =============================================================
@@ -121,7 +121,8 @@ def cargo_obrigatorio(*cargos):
 # AUTENTICAÇÃO
 # =============================================================
 
-  
+
+
 @app.route('/')
 def index():
     if 'usuario_id' in session:
@@ -228,7 +229,7 @@ def painel_cliente():
 @login_obrigatorio
 def novo_atendimento():
     """Cria um novo ticket de atendimento."""
-    usuario = Usuario.query.get(session['usuario_id'])
+    usuario = db.session.get(Usuario, session['usuario_id'])
     
     if request.method == 'POST':
         descricao = request.form.get('descricao', '').strip()
@@ -253,7 +254,7 @@ def novo_atendimento():
 @cargo_obrigatorio('Atendente', 'Administrador')
 def editar_atendimento(id):
     """Edita status e atendente de um ticket."""
-    at        = Atendimento.query.get_or_404(id)
+    at        = db.get_or_404(Atendimento, id)
     atendentes = Usuario.query.filter_by(cargo='Atendente').all()
 
     if request.method == 'POST':
@@ -266,7 +267,7 @@ def editar_atendimento(id):
         if nova_descricao:
             at.descricao = nova_descricao
         at.atendente_id      = int(atendente_id) if atendente_id and atendente_id != '0' else None
-        at.data_atualizacao  = datetime.utcnow()
+        at.data_atualizacao  = datetime.now(timezone.utc)
 
         db.session.commit()
         flash('Ticket atualizado!', 'sucesso')
@@ -280,10 +281,10 @@ def editar_atendimento(id):
 @cargo_obrigatorio('Atendente', 'Administrador')
 def assumir_atendimento(id):
     """Atendente assume um ticket aberto."""
-    at              = Atendimento.query.get_or_404(id)
+    at              = db.get_or_404(Atendimento, id)
     at.atendente_id = session['usuario_id']
     at.status       = 'Em Andamento'
-    at.data_atualizacao = datetime.utcnow()
+    at.data_atualizacao = datetime.now(timezone.utc)
     db.session.commit()
     flash('Ticket assumido!', 'sucesso')
     return redirect(url_for('painel_atendente'))
@@ -294,7 +295,7 @@ def assumir_atendimento(id):
 @cargo_obrigatorio('Administrador')
 def excluir_atendimento(id):
     """Remove um ticket (somente admin)."""
-    at = Atendimento.query.get_or_404(id)
+    at = db.get_or_404(Atendimento, id)
     db.session.delete(at)
     db.session.commit()
     flash('Atendimento excluído.', 'info')
@@ -362,7 +363,7 @@ def novo_usuario():
 @login_obrigatorio
 @cargo_obrigatorio('Administrador')
 def editar_usuario(id):
-    u = Usuario.query.get_or_404(id)
+    u = db.get_or_404(Usuario, id)
 
     if request.method == 'POST':
         u.nome  = request.form.get('nome', u.nome).strip()
@@ -386,10 +387,14 @@ def excluir_usuario(id):
     if id == session['usuario_id']:
         flash('Você não pode excluir sua própria conta.', 'erro')
         return redirect(url_for('listar_usuarios'))
-    u = Usuario.query.get_or_404(id)
-    db.session.delete(u)
-    db.session.commit()
-    flash('Usuário removido.', 'info')
+    u = db.get_or_404(Usuario, id)
+    try:
+        db.session.delete(u)
+        db.session.commit()
+        flash('Usuário removido.', 'info')
+    except IntegrityError:
+        db.session.rollback()
+        flash('Não é possível excluir este usuário pois ele possui atendimentos vinculados.', 'erro')
     return redirect(url_for('listar_usuarios'))
 
 
@@ -432,7 +437,7 @@ def novo_produto():
 @login_obrigatorio
 @cargo_obrigatorio('Atendente', 'Administrador')
 def editar_produto(id):
-    p = Produto.query.get_or_404(id)
+    p = db.get_or_404(Produto, id)
 
     if request.method == 'POST':
         p.nome      = request.form.get('nome', p.nome).strip()
@@ -455,7 +460,7 @@ def editar_produto(id):
 @login_obrigatorio
 @cargo_obrigatorio('Administrador')
 def excluir_produto(id):
-    p = Produto.query.get_or_404(id)
+    p = db.get_or_404(Produto, id)
     db.session.delete(p)
     db.session.commit()
     flash('Produto removido do estoque.', 'info')
@@ -473,7 +478,7 @@ def relatorio_clientes_atendidos():
     """Relatório de clientes atendidos em um mês específico com histórico."""
     
     # Data atual
-    hoje = datetime.utcnow()
+    hoje = datetime.now(timezone.utc)
     
     # Pegar parâmetros do formulário
     ano = request.args.get('ano', default=hoje.year, type=int)
@@ -539,6 +544,8 @@ def relatorio_clientes_atendidos():
     total_clientes = len(atendimentos_mes)
     total_atendimentos = sum([a[3] for a in atendimentos_mes])
     
+    # ⚠️  ATENÇÃO: o template 'relatorio_clientes_mes.html' precisa ser criado
+    #     em templates/ — ele não está incluído na estrutura original do projeto.
     return render_template('relatorio_clientes_mes.html',
         ano=ano,
         mes=mes,

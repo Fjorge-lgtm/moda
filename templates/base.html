@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ModaAtende - Sistema de Atendimento</title>
+    <title>{% block titulo %}{{ titulo_superior | default('ModaAtende - Sistema de Atendimento') }}{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
+        <!-- Sidebar (mostrar apenas quando houver sessão) -->
+        {% if session.get('usuario_id') %}
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>ModaAtende</h2>
@@ -21,13 +22,13 @@
                     📊 Dashboard
                 </a>
                 
-                {% if session.cargo == 'Cliente' %}
+                {% if session.get('cargo') == 'Cliente' %}
                 <a href="{{ url_for('novo_atendimento') }}" class="nav-item">
                     ✨ Novo Atendimento
                 </a>
                 {% endif %}
                 
-                {% if session.cargo in ['Atendente', 'Administrador'] %}
+                {% if session.get('cargo') in ['Atendente', 'Administrador'] %}
                 <a href="{{ url_for('relatorio_clientes_atendidos') }}" class="nav-item">
                     📈 Relatório de Clientes
                 </a>
@@ -36,7 +37,7 @@
                 </a>
                 {% endif %}
                 
-                {% if session.cargo == 'Administrador' %}
+                {% if session.get('cargo') == 'Administrador' %}
                 <a href="{{ url_for('listar_usuarios') }}" class="nav-item">
                     👥 Usuários
                 </a>
@@ -47,16 +48,24 @@
                 </a>
             </nav>
         </aside>
+        {% endif %}
 
         <!-- Main Content -->
         <main class="main-content">
             <div class="topbar">
+                {% if session.get('usuario_id') %}
                 <button class="sidebar-toggle" id="sidebarToggle">☰</button>
                 <div class="user-info">
-                    <span>Bem-vinda, {{ session.nome }}</span>
-                    <small>({{ session.cargo }})</small>
+                    <span>Bem-vinda, {{ session.get('nome', '') }}</span>
+                    <small>({{ session.get('cargo', '') }})</small>
                 </div>
                 <button class="dark-mode-toggle" id="darkModeToggle">🌙</button>
+                {% else %}
+                <!-- Topbar público minimalista para páginas como login -->
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <h2 style="margin:0;">ModaAtende</h2>
+                </div>
+                {% endif %}
             </div>
 
             <div class="content-wrapper">
@@ -74,6 +83,24 @@
             </div>
         </main>
     </div>
+
+    <!-- Pequeno fallback JS para funções usadas nos templates caso main.js não exista -->
+    <script>
+    window.alternarTema = window.alternarTema || function() {
+        document.body.classList.toggle('dark');
+    };
+
+    // Delegação simples para confirmar ações de formulários com atributo data-confirmar
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (form && form.hasAttribute('data-confirmar')) {
+            const msg = form.getAttribute('data-confirmar');
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
+        }
+    }, true);
+    </script>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

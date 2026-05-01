@@ -15,8 +15,8 @@
     {% endif %}
   </div>
   <p class="subtitulo-pagina">
-    Aberto por <strong>{{ at.cliente.nome }}</strong>
-    em {{ at.data_criacao.strftime('%d/%m/%Y às %H:%M') }}
+    Aberto por <strong>{{ at.cliente.nome if at.cliente else 'Cliente não encontrado' }}</strong>
+    em {{ at.data_criacao.strftime('%d/%m/%Y às %H:%M') if at.data_criacao else '-' }}
   </p>
 </div>
 
@@ -53,10 +53,9 @@
         <label class="label" for="atendente_id">Atendente Responsável</label>
         <div class="campo-select">
           <select id="atendente_id" name="atendente_id" class="input">
-            <option value="0">— Sem atendente —</option>
+            <option value="0" {% if not at.atendente_id %}selected{% endif %}>— Sem atendente —</option>
             {% for a in atendentes %}
-            <option value="{{ a.id }}"
-                    {% if at.atendente_id == a.id %}selected{% endif %}>
+            <option value="{{ a.id }}" {% if at.atendente_id == a.id %}selected{% endif %}>
               {{ a.nome }}
             </option>
             {% endfor %}
