@@ -22,8 +22,17 @@ import os
 # CONFIGURAÇÃO
 # -------------------------------------------------------------
 app = Flask(__name__)
-app.config['SECRET_KEY']                  = os.environ.get('SECRET_KEY', 'loja-roupas-2024')
-app.config['SQLALCHEMY_DATABASE_URI']     = 'sqlite:///loja_roupas.db'
+
+# CORREÇÃO 16: Banco de dados com caminho absoluto e pasta dedicada.
+# Era: 'sqlite:///loja_roupas.db' → criava o arquivo em instance/ sem controle.
+# Agora: pasta 'database/' explícita na raiz do projeto, criada automaticamente.
+# Em Docker, aponte o volume para esta pasta: -v ./database:/app/database
+BASE_DIR     = os.path.abspath(os.path.dirname(__file__))
+DATABASE_DIR = os.path.join(BASE_DIR, 'database')
+os.makedirs(DATABASE_DIR, exist_ok=True)   # Cria a pasta se não existir
+
+app.config['SECRET_KEY']              = os.environ.get('SECRET_KEY', 'loja-roupas-2024')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(DATABASE_DIR, 'loja_roupas.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -475,25 +484,45 @@ def excluir_produto(id):
 @login_obrigatorio
 @cargo_obrigatorio('Atendente', 'Administrador')
 def relatorio_clientes_atendidos():
-    """Relatório de clientes atendidos em um mês específico com histórico."""
-    
-    # Data atual
+    """
+    Relatório de clientes atendidos.
+
+    Exibe três seções:
+    1. Filtro por mês/ano  → atendimentos concluídos no período selecionado
+    2. Histórico mensal    → resumo dos últimos 12 meses (quantos clientes/mês)
+    3. NOVO: Histórico por cliente → todos os clientes que já tiveram atendimento
+                                     concluído em qualquer data (linha do tempo)
+    """
+
+    # ------------------------------------------------------------------
+    # PARÂMETROS DE FILTRO
+    # O usuário pode passar ?mes=3&ano=2025 na URL (via formulário GET).
+    # Se não passar nada, usa o mês e ano atuais como padrão.
+    # ------------------------------------------------------------------
     hoje = datetime.now(timezone.utc)
-    
-    # Pegar parâmetros do formulário
-    ano = request.args.get('ano', default=hoje.year, type=int)
+
+    ano = request.args.get('ano', default=hoje.year,  type=int)
     mes = request.args.get('mes', default=hoje.month, type=int)
-    
-    # Validar mês e ano
+
+    # Garante que mês e ano estejam dentro de faixas válidas
     if mes < 1 or mes > 12:
         mes = hoje.month
     if ano < 2020 or ano > hoje.year + 1:
         ano = hoje.year
-    
-    # Query: Clientes atendidos acumulados desde o início do ano até o mês selecionado (status 'Concluido')
+
+    # ------------------------------------------------------------------
+    # QUERY 1 — CLIENTES DO PERÍODO SELECIONADO
+    #
+    # Busca todos os clientes que tiveram ao menos um atendimento com
+    # status 'Concluido' dentro do mês/ano escolhido no filtro.
+    #
+    # GROUP BY cliente_id agrupa várias linhas do mesmo cliente em uma só,
+    # permitindo calcular: quantos atendimentos teve (COUNT), quando foi
+    # o primeiro (MIN) e o último (MAX).
+    # ------------------------------------------------------------------
     inicio_periodo = datetime(ano, 1, 1)
-    ultimo_dia = calendar.monthrange(ano, mes)[1]
-    fim_periodo = datetime(ano, mes, ultimo_dia, 23, 59, 59)
+    ultimo_dia     = calendar.monthrange(ano, mes)[1]
+    fim_periodo    = datetime(ano, mes, ultimo_dia, 23, 59, 59)
 
     atendimentos_mes = db.session.query(
         Atendimento.cliente_id,
@@ -502,17 +531,27 @@ def relatorio_clientes_atendidos():
         func.count(Atendimento.id).label('qtd_atendimentos'),
         func.min(Atendimento.data_criacao).label('primeiro_atendimento'),
         func.max(Atendimento.data_criacao).label('ultimo_atendimento')
-    ).join(Usuario, Atendimento.cliente_id == Usuario.id).filter(
+    ).join(
+        Usuario, Atendimento.cliente_id == Usuario.id
+    ).filter(
         Atendimento.data_criacao >= inicio_periodo,
         Atendimento.data_criacao <= fim_periodo,
         Atendimento.status == 'Concluido'
-    ).group_by(Atendimento.cliente_id, Usuario.nome, Usuario.email).order_by(
+    ).group_by(
+        Atendimento.cliente_id, Usuario.nome, Usuario.email
+    ).order_by(
         func.count(Atendimento.id).desc()
     ).all()
-    
-    # Query: Histórico dos últimos 12 meses (resumo por mês)
-    historico = db.session.query(
-        extract('year', Atendimento.data_criacao).label('ano'),
+
+    # ------------------------------------------------------------------
+    # QUERY 2 — HISTÓRICO MENSAL (últimos 12 meses)
+    #
+    # Agrupa os atendimentos concluídos por mês/ano para mostrar a
+    # evolução ao longo do tempo na barra de histórico.
+    # extract('year'/'month') puxa apenas o componente de data desejado.
+    # ------------------------------------------------------------------
+    historico_mensal = db.session.query(
+        extract('year',  Atendimento.data_criacao).label('ano'),
         extract('month', Atendimento.data_criacao).label('mes'),
         func.count(func.distinct(Atendimento.cliente_id)).label('clientes_unicos'),
         func.count(Atendimento.id).label('total_atendimentos')
@@ -520,42 +559,132 @@ def relatorio_clientes_atendidos():
         Atendimento.status == 'Concluido',
         Atendimento.data_criacao >= (hoje - timedelta(days=365))
     ).group_by(
-        extract('year', Atendimento.data_criacao),
+        extract('year',  Atendimento.data_criacao),
         extract('month', Atendimento.data_criacao)
     ).order_by(
-        extract('year', Atendimento.data_criacao).desc(),
+        extract('year',  Atendimento.data_criacao).desc(),
         extract('month', Atendimento.data_criacao).desc()
     ).all()
-    
-    # Formatar histórico com nomes dos meses
-    meses_nomes = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+    # ------------------------------------------------------------------
+    # QUERY 3 — HISTÓRICO COMPLETO POR CLIENTE  ← NOVIDADE
+    #
+    # Lista TODOS os clientes que já tiveram pelo menos um atendimento
+    # com status 'Concluido', independente da data.
+    #
+    # Diferença em relação à Query 1:
+    #   • Query 1 filtra por período (mês/ano selecionado)
+    #   • Query 3 não tem filtro de data → mostra o histórico completo
+    #
+    # Para cada cliente calcula:
+    #   • qtd_atendimentos  → total de atendimentos já concluídos
+    #   • primeiro_atendimento → data do primeiro (mais antigo)
+    #   • ultimo_atendimento   → data do mais recente
+    #
+    # ORDER BY ultimo_atendimento DESC coloca quem foi atendido mais
+    # recentemente no topo da lista.
+    # ------------------------------------------------------------------
+    historico_clientes = db.session.query(
+        Atendimento.cliente_id,
+        Usuario.nome,
+        Usuario.email,
+        func.count(Atendimento.id).label('qtd_atendimentos'),
+        func.min(Atendimento.data_criacao).label('primeiro_atendimento'),
+        func.max(Atendimento.data_criacao).label('ultimo_atendimento')
+    ).join(
+        Usuario, Atendimento.cliente_id == Usuario.id
+    ).filter(
+        Atendimento.status == 'Concluido'       # ← sem filtro de data: pega tudo
+    ).group_by(
+        Atendimento.cliente_id, Usuario.nome, Usuario.email
+    ).order_by(
+        func.max(Atendimento.data_criacao).desc()   # mais recente primeiro
+    ).all()
+
+    # ------------------------------------------------------------------
+    # QUERY 4 — LINHA DO TEMPO POR CLIENTE  ← NOVIDADE
+    #
+    # Para cada cliente do histórico, busca TODOS os seus atendimentos
+    # individuais concluídos (sem agrupar), para exibir a linha do tempo
+    # detalhada quando o usuário expandir um cliente.
+    #
+    # Retorna um dicionário: { cliente_id: [lista de atendimentos] }
+    # O template usa: timeline[item.cliente_id]
+    # ------------------------------------------------------------------
+    todos_concluidos = db.session.query(
+        Atendimento.cliente_id,
+        Atendimento.id,
+        Atendimento.descricao,
+        Atendimento.data_criacao,
+        Atendimento.data_atualizacao,
+        Usuario.nome.label('atendente_nome')        # nome do atendente responsável
+    ).join(
+        Usuario, Atendimento.atendente_id == Usuario.id,
+        isouter=True    # LEFT JOIN: inclui atendimentos sem atendente atribuído
+    ).filter(
+        Atendimento.status == 'Concluido'
+    ).order_by(
+        Atendimento.cliente_id,
+        Atendimento.data_criacao.desc()     # mais recente primeiro dentro de cada cliente
+    ).all()
+
+    # Agrupa os registros individuais por cliente_id num dicionário
+    # { 1: [atend_A, atend_B], 2: [atend_C], ... }
+    timeline = {}
+    for row in todos_concluidos:
+        if row.cliente_id not in timeline:
+            timeline[row.cliente_id] = []
+        timeline[row.cliente_id].append(row)
+
+    # ------------------------------------------------------------------
+    # MAPA DE NOMES DOS MESES
+    # Dicionário usado tanto para formatar datas no template quanto
+    # para popular o <select> de filtro de mês.
+    # ------------------------------------------------------------------
+    meses_nomes = {
+        1: 'Janeiro',  2: 'Fevereiro', 3: 'Março',    4: 'Abril',
+        5: 'Maio',     6: 'Junho',     7: 'Julho',     8: 'Agosto',
+        9: 'Setembro', 10: 'Outubro',  11: 'Novembro', 12: 'Dezembro'
+    }
+
+    # Formata o histórico mensal adicionando o nome do mês como string
     historico_formatado = []
-    for item in historico:
+    for item in historico_mensal:
         historico_formatado.append({
-            'ano': int(item[0]),
-            'mes': int(item[1]),
-            'mes_nome': meses_nomes[int(item[1])],
-            'clientes_unicos': item[2],
+            'ano':                int(item[0]),
+            'mes':                int(item[1]),
+            'mes_nome':           meses_nomes[int(item[1])],
+            'clientes_unicos':    item[2],
             'total_atendimentos': item[3]
         })
-    
-    # Estatísticas do mês
-    total_clientes = len(atendimentos_mes)
-    total_atendimentos = sum([a[3] for a in atendimentos_mes])
-    
-    # ⚠️  ATENÇÃO: o template 'relatorio_clientes_mes.html' precisa ser criado
-    #     em templates/ — ele não está incluído na estrutura original do projeto.
+
+    # Totalizadores do período filtrado (para os cards de resumo)
+    total_clientes      = len(atendimentos_mes)
+    total_atendimentos  = sum(a[3] for a in atendimentos_mes)
+
+    # Total geral do histórico completo (independente do filtro)
+    total_historico_clientes     = len(historico_clientes)
+    total_historico_atendimentos = sum(a[3] for a in historico_clientes)
+
     return render_template('relatorio_clientes_mes.html',
-        ano=ano,
-        mes=mes,
-        mes_nome=meses_nomes[mes],
-        atendimentos=atendimentos_mes,
-        total_clientes=total_clientes,
-        total_atendimentos=total_atendimentos,
-        historico=historico_formatado,
-        meses_nomes=meses_nomes,
-        now=hoje
+        # Filtro de período
+        ano                          = ano,
+        mes                          = mes,
+        mes_nome                     = meses_nomes[mes],
+        meses_nomes                  = meses_nomes,
+        now                          = hoje,
+        # Seção 1: clientes do período selecionado
+        atendimentos                 = atendimentos_mes,
+        total_clientes               = total_clientes,
+        total_atendimentos           = total_atendimentos,
+        # Seção 2: histórico mensal (últimos 12 meses)
+        historico                    = historico_formatado,
+        # Seção 3: histórico completo por cliente  ← NOVO
+        historico_clientes           = historico_clientes,
+        total_historico_clientes     = total_historico_clientes,
+        total_historico_atendimentos = total_historico_atendimentos,
+        # Seção 4: linha do tempo detalhada por cliente  ← NOVO
+        timeline                     = timeline,
     )
 
 

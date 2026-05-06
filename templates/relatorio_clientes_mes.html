@@ -1,590 +1,516 @@
 {% extends 'base.html' %}
+{% block titulo %}Relatório de Clientes Atendidos — ModaAtende{% endblock %}
+
+
+{# ============================================================
+   CSS ESPECÍFICO DESTA PÁGINA
+   Colocado antes do conteudo para ser injetado no head
+   pelo base.html via o bloco css_extra
+   ============================================================ #}
+{% block css_extra %}
+<style>
+  /* Hover na linha clicável do cliente */
+  .historico-cliente-linha:hover {
+    background-color: var(--rosa-claro);
+  }
+
+  /* Impressão: oculta navegação e expande todas as timelines */
+  @media print {
+    .sidebar, .topbar, .sidebar-overlay,
+    .grupo-botoes, .btn, .flash-area, .rodape,
+    form { display: none !important; }
+
+    .main-content,
+    .content-wrapper { margin-left: 0 !important; }
+
+    [id^="timeline-"] { display: block !important; }
+
+    table { page-break-inside: auto; }
+    tr    { page-break-inside: avoid; page-break-after: auto; }
+
+    body::after {
+      content: 'ModaAtende — Relatório de Clientes Atendidos';
+      display: block;
+      text-align: center;
+      font-size: 11px;
+      color: #888;
+      margin-top: 24px;
+    }
+  }
+</style>
+{% endblock %}
+
 
 {% block conteudo %}
-<div class="relatorio-container">
-    <div class="relatorio-header">
-        <h1>📊 Relatório de Clientes Atendidos</h1>
-        <p>Acompanhe os clientes atendidos por mês com histórico detalhado</p>
-    </div>
 
-    <!-- Filtro de Mês/Ano -->
-    <section class="filtro-section">
-        <h3>Selecione o Período</h3>
-        <form method="GET" class="filtro-form">
-            <div class="filtro-group">
-                <label for="mes">Mês:</label>
-                <select name="mes" id="mes" onchange="this.form.submit()">
-                    {% for m in range(1, 13) %}
-                    <option value="{{ m }}" {% if m == mes %}selected{% endif %}>
-                        {{ meses_nomes[m] }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filtro-group">
-                <label for="ano">Ano:</label>
-                <select name="ano" id="ano" onchange="this.form.submit()">
-                    {% for a in range(2020, now.year + 2) %}
-                    <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
-    </section>
-
-    <!-- Estatísticas do Mês -->
-    <section class="stats-section">
-        <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-content">
-                <h4>Clientes Únicos</h4>
-                <p class="stat-value">{{ total_clientes }}</p>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">📋</div>
-            <div class="stat-content">
-                <h4>Total de Atendimentos</h4>
-                <p class="stat-value">{{ total_atendimentos }}</p>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">📅</div>
-            <div class="stat-content">
-                <h4>Período</h4>
-                <p class="stat-value">{{ mes_nome }}/{{ ano }}</p>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">⭐</div>
-            <div class="stat-content">
-                <h4>Média por Cliente</h4>
-                <p class="stat-value">
-                    {% if total_clientes > 0 %}
-                        {{ "%.1f"|format(total_atendimentos / total_clientes) }}
-                    {% else %}
-                        0
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Tabela de Clientes Atendidos -->
-    <section class="clientes-section">
-        <h3>🎯 Clientes Atendidos até {{ mes_nome }}/{{ ano }}</h3>
-        <p class="relatorio-aviso">Os valores são acumulados desde o início do ano até o mês selecionado.</p>
-        
-        {% if atendimentos %}
-            <div class="table-responsive">
-                <table class="tabela-clientes">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Cliente</th>
-                            <th>E-mail</th>
-                            <th>Atendimentos</th>
-                            <th>Primeiro Atendimento</th>
-                            <th>Último Atendimento</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for cliente in atendimentos %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td class="cliente-nome">{{ cliente[1] }}</td>
-                            <td>{{ cliente[2] }}</td>
-                            <td>
-                                <span class="badge badge-info">{{ cliente[3] }}</span>
-                            </td>
-                            <td>{{ cliente[4].strftime('%d/%m/%Y %H:%M') if cliente[4] else '-' }}</td>
-                            <td>{{ cliente[5].strftime('%d/%m/%Y %H:%M') if cliente[5] else '-' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="empty-state">
-                <p>📭 Nenhum cliente atendido neste período</p>
-            </div>
-        {% endif %}
-    </section>
-
-    <!-- Histórico dos Últimos 12 Meses -->
-    <section class="historico-section">
-        <h3>📈 Histórico dos Últimos 12 Meses</h3>
-        
-        {% if historico %}
-            <div class="historico-grid">
-                {% for mes_hist in historico %}
-                <div class="historico-card">
-                    <div class="historico-title">
-                        {{ mes_hist.mes_nome }} {{ mes_hist.ano }}
-                    </div>
-                    <div class="historico-stats">
-                        <div class="historico-stat">
-                            <span class="historico-label">Clientes</span>
-                            <span class="historico-valor">{{ mes_hist.clientes_unicos }}</span>
-                        </div>
-                        <div class="historico-stat">
-                            <span class="historico-label">Atendimentos</span>
-                            <span class="historico-valor">{{ mes_hist.total_atendimentos }}</span>
-                        </div>
-                    </div>
-                    <div class="historico-bar">
-                        <div class="bar-fill" style="width: {{ (mes_hist.total_atendimentos / 50) * 100 }}%"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="empty-state">
-                <p>📭 Sem dados de histórico</p>
-            </div>
-        {% endif %}
-    </section>
-
-    <!-- Ações -->
-    <section class="acoes-section">
-        <button onclick="window.print()" class="btn btn-primary">🖨️ Imprimir</button>
-        <button onclick="exportarCSV()" class="btn btn-secondary">📥 Exportar CSV</button>
-    </section>
+<!-- ============================================================
+     CABEÇALHO DA PÁGINA
+     ============================================================ -->
+<div class="cabecalho-pagina animar">
+  <a href="{{ url_for('painel_admin') }}" class="voltar">← Voltar ao Painel</a>
+  <h1 class="titulo-pagina">
+    Relatório de <span class="destaque">Clientes Atendidos</span>
+  </h1>
+  <p class="subtitulo-pagina">
+    Histórico completo e filtro por período — somente atendimentos
+    <strong>Concluídos</strong>.
+  </p>
 </div>
 
-<style>
-.relatorio-container {
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.relatorio-header {
-    margin-bottom: 40px;
-}
-
-.relatorio-header h1 {
-    font-size: 2.5rem;
-    margin: 0 0 10px 0;
-    color: #333;
-}
-
-.relatorio-header p {
-    color: #666;
-    font-size: 1.1rem;
-}
-
-/* Filtro */
-.filtro-section {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    margin-bottom: 30px;
-}
-
-.filtro-section h3 {
-    margin-top: 0;
-    color: #333;
-    font-size: 1.3rem;
-}
-
-.filtro-form {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-}
-
-.filtro-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.filtro-group label {
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #555;
-}
-
-.filtro-group select {
-    padding: 10px 15px;
-    border: 2px solid #ddd;
-    border-radius: 6px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: border-color 0.3s;
-}
-
-.filtro-group select:hover,
-.filtro-group select:focus {
-    border-color: #8b5a8f;
-    outline: none;
-}
-
-/* Estatísticas */
-.stats-section {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 25px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: transform 0.3s;
-}
-
-.stat-card:nth-child(2) {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.stat-card:nth-child(3) {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.stat-card:nth-child(4) {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-}
-
-.stat-icon {
-    font-size: 2.5rem;
-}
-
-.stat-content h4 {
-    margin: 0;
-    font-size: 0.95rem;
-    opacity: 0.9;
-}
-
-.stat-value {
-    margin: 8px 0 0 0;
-    font-size: 2rem;
-    font-weight: 700;
-}
-
-/* Tabela */
-.clientes-section,
-.historico-section,
-.acoes-section {
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    margin-bottom: 30px;
-}
-
-.clientes-section h3,
-.historico-section h3 {
-    margin-top: 0;
-    color: #333;
-    font-size: 1.3rem;
-    margin-bottom: 20px;
-}
-
-.relatorio-aviso {
-    color: #555;
-    margin: -10px 0 20px;
-    font-size: 0.95rem;
-}
-
-.table-responsive {
-    overflow-x: auto;
-}
-
-.tabela-clientes {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-}
-
-.tabela-clientes thead {
-    background-color: #f8f9fa;
-}
-
-.tabela-clientes th {
-    padding: 15px;
-    text-align: left;
-    font-weight: 600;
-    color: #333;
-    border-bottom: 2px solid #ddd;
-}
-
-.tabela-clientes td {
-    padding: 12px 15px;
-    border-bottom: 1px solid #eee;
-}
-
-.tabela-clientes tbody tr:hover {
-    background-color: #f8f9fa;
-}
-
-.cliente-nome {
-    font-weight: 600;
-    color: #8b5a8f;
-}
-
-.badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.badge-info {
-    background-color: #e3f2fd;
-    color: #1976d2;
-}
-
-/* Histórico */
-.historico-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.historico-card {
-    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid #8b5a8f;
-}
-
-.historico-title {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 15px;
-    font-size: 1.05rem;
-}
-
-.historico-stats {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.historico-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.historico-label {
-    font-size: 0.8rem;
-    color: #666;
-    margin-bottom: 4px;
-}
-
-.historico-valor {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #8b5a8f;
-}
-
-.historico-bar {
-    background-color: #ddd;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.bar-fill {
-    background: linear-gradient(90deg, #667eea, #764ba2);
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.5s ease;
-}
-
-/* Empty State */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: #999;
-    font-size: 1.1rem;
-}
-
-/* Botões */
-.acoes-section {
-    display: flex;
-    gap: 15px;
-    justify-content: flex-end;
-}
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-    background-color: #f0f0f0;
-    color: #333;
-    border: 2px solid #ddd;
-}
-
-.btn-secondary:hover {
-    background-color: #e8e8e8;
-    border-color: #bbb;
-}
-
-/* Print */
-@media print {
-    .sidebar,
-    .topbar,
-    .filtro-section,
-    .acoes-section {
-        display: none;
-    }
-
-    .relatorio-container {
-        max-width: 100%;
-    }
-
-    .stat-card {
-        page-break-inside: avoid;
-    }
-
-    .tabela-clientes {
-        page-break-inside: avoid;
-    }
-}
-
-/* Responsivo */
-@media (max-width: 768px) {
-    .relatorio-header h1 {
-        font-size: 2rem;
-    }
-
-    .stats-section {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .filtro-form {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .filtro-group select {
-        width: 100%;
-    }
-
-    .tabela-clientes {
-        font-size: 0.85rem;
-    }
-
-    .tabela-clientes th,
-    .tabela-clientes td {
-        padding: 8px;
-    }
-
-    .historico-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .acoes-section {
-        flex-direction: column;
-        justify-content: stretch;
-    }
-
-    .btn {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .relatorio-container {
-        padding: 10px;
-    }
-
-    .stats-section {
-        grid-template-columns: 1fr;
-    }
-
-    .historico-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .tabela-clientes th,
-    .tabela-clientes td {
-        padding: 6px;
-        font-size: 0.8rem;
-    }
-}
-</style>
-
-<script>
-// Calcular ano atual para o formulário
-document.addEventListener('DOMContentLoaded', function() {
-    const anoSelect = document.getElementById('ano');
-    const hoje = new Date();
-    // O template já gera as opções, então isso é apenas para referência
-});
-
-function exportarCSV() {
-    const table = document.querySelector('.tabela-clientes');
-    let csv = 'Cliente,E-mail,Atendimentos,Primeiro Atendimento,Último Atendimento\n';
-    
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        const rowData = Array.from(cells).map(cell => {
-            let text = cell.textContent.trim();
-            // Escapar aspas duplas
-            text = text.replace(/"/g, '""');
-            // Envolver em aspas se contiver vírgula
-            if (text.includes(',')) {
-                text = `"${text}"`;
-            }
-            return text;
-        });
-        csv += rowData.slice(1).join(',') + '\n'; // Pular coluna de índice
-    });
-    
-    // Adicionar data
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
-    csv = `Relatório de Clientes Atendidos\nData de Geração: ${dataAtual}\n\n${csv}`;
-    
-    // Criar blob e download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `relatorio-clientes-${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-</script>
+
+<!-- ============================================================
+     FILTRO DE MÊS / ANO
+     method="GET" envia os valores na URL: ?mes=3&ano=2025
+     O app.py lê com request.args.get() e refaz as queries.
+     ============================================================ -->
+<div class="cartao-form animar atraso-1" style="max-width:100%; margin-bottom:24px;">
+  <form method="GET" action="{{ url_for('relatorio_clientes_atendidos') }}"
+        style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;">
+
+    <div class="campo" style="flex:1; min-width:140px;">
+      <label class="label" for="mes">Mês</label>
+      <div class="campo-select">
+        <select id="mes" name="mes" class="input">
+          {# meses_nomes é um dicionário {1:'Janeiro', ...}
+             .items() retorna pares (numero, nome) para o <select> #}
+          {% for num, nome in meses_nomes.items() %}
+          <option value="{{ num }}" {% if num == mes %}selected{% endif %}>
+            {{ nome }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="campo" style="flex:1; min-width:110px;">
+      <label class="label" for="ano">Ano</label>
+      <div class="campo-select">
+        <select id="ano" name="ano" class="input">
+          {% for a in range(now.year, 2019, -1) %}
+          <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primario" style="white-space:nowrap;">
+      🔍 Filtrar Período
+    </button>
+  </form>
+</div>
+
+
+<!-- ============================================================
+     CARDS DE RESUMO
+     Primeiros 3 cards  = totais do PERÍODO FILTRADO
+     Últimos  2 cards   = totais do HISTÓRICO COMPLETO
+     ============================================================ -->
+<div class="grade-stats" style="margin-bottom:24px;">
+
+  <div class="stat rosa animar atraso-1">
+    <p class="stat-rotulo">📅 Período</p>
+    <p class="stat-numero" style="font-size:22px;">{{ mes_nome }}</p>
+    <p class="stat-sub">{{ ano }}</p>
+  </div>
+
+  <div class="stat verde animar atraso-2">
+    <p class="stat-rotulo">👥 No Período</p>
+    <p class="stat-numero">{{ total_clientes }}</p>
+    <p class="stat-sub">clientes únicos</p>
+  </div>
+
+  <div class="stat azul animar atraso-3">
+    <p class="stat-rotulo">✅ No Período</p>
+    <p class="stat-numero">{{ total_atendimentos }}</p>
+    <p class="stat-sub">atendimentos</p>
+  </div>
+
+  <div class="stat amarelo animar atraso-4">
+    <p class="stat-rotulo">🏆 Histórico Total</p>
+    <p class="stat-numero">{{ total_historico_clientes }}</p>
+    <p class="stat-sub">clientes atendidos</p>
+  </div>
+
+  <div class="stat animar atraso-5">
+    <p class="stat-rotulo">📊 Histórico Total</p>
+    <p class="stat-numero">{{ total_historico_atendimentos }}</p>
+    <p class="stat-sub">atend. concluídos</p>
+  </div>
+
+</div>
+
+
+<!-- ============================================================
+     SEÇÃO 1 — TABELA DO PERÍODO FILTRADO
+     atendimentos = clientes com atendimentos concluídos
+                    dentro do mês/ano selecionado no filtro
+     ============================================================ -->
+<div class="cartao-tabela animar atraso-2" style="margin-bottom:32px;">
+
+  <div class="tabela-cabecalho">
+    <h2 class="tabela-titulo">
+      Clientes Atendidos em {{ mes_nome }}/{{ ano }}
+    </h2>
+    <span class="tabela-meta">
+      Somente status <strong>Concluído</strong>
+    </span>
+  </div>
+
+  {% if atendimentos %}
+  <div class="tabela-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th class="oculto-mobile">E-mail</th>
+          <th style="text-align:center;">Qtd.</th>
+          <th class="oculto-mobile">Primeiro Atend.</th>
+          <th class="oculto-mobile">Último Atend.</th>
+          <th style="text-align:center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in atendimentos %}
+        <tr>
+          <td class="td-mono">{{ loop.index }}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="avatar" style="width:32px; height:32px; font-size:13px;">
+                {{ item.nome[0]|upper if item.nome else '?' }}
+              </div>
+              <span style="font-weight:600;">{{ item.nome }}</span>
+            </div>
+          </td>
+          <td class="td-suave oculto-mobile">{{ item.email }}</td>
+          <td style="text-align:center;">
+            <span style="display:inline-flex; align-items:center; justify-content:center;
+                         min-width:34px; padding:4px 10px; background:var(--verde-bg);
+                         color:var(--verde-texto); border:1px solid var(--verde-borda);
+                         border-radius:999px; font-size:13px; font-weight:700;">
+              {{ item.qtd_atendimentos }}
+            </span>
+          </td>
+          <td class="td-suave oculto-mobile">
+            {{ item.primeiro_atendimento.strftime('%d/%m/%Y') if item.primeiro_atendimento else '—' }}
+          </td>
+          <td class="td-suave oculto-mobile">
+            {{ item.ultimo_atendimento.strftime('%d/%m/%Y') if item.ultimo_atendimento else '—' }}
+          </td>
+          <td style="text-align:center;">
+            <span class="badge badge-concluido">✅ Concluído</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--bege); font-weight:700; border-top:2px solid var(--borda);">
+          <td colspan="3" style="padding:12px 20px; color:var(--texto-suave);">Total do período</td>
+          <td style="text-align:center; padding:12px 20px; color:var(--verde-texto);">
+            {{ total_atendimentos }}
+          </td>
+          <td colspan="3" class="oculto-mobile"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="tabela-vazia">
+    <div class="icone-vazio">📭</div>
+    <p style="margin-bottom:8px;">
+      Nenhum cliente com atendimento concluído em
+      <strong>{{ mes_nome }}/{{ ano }}</strong>.
+    </p>
+    <p style="font-size:13px; color:var(--texto-fraco);">
+      Tente selecionar outro mês ou verifique se existem
+      atendimentos com status <em>Concluído</em> neste período.
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     SEÇÃO 2 — HISTÓRICO COMPLETO POR CLIENTE
+     historico_clientes = TODOS os clientes que já tiveram
+                          ao menos 1 atendimento concluído,
+                          SEM filtro de data.
+     timeline = dicionário {cliente_id: [lista de atendimentos]}
+                cada entrada contém os atendimentos individuais
+                do cliente para a linha do tempo expandível.
+     ============================================================ -->
+<div class="cartao-tabela animar atraso-3" style="margin-bottom:32px;">
+
+  <div class="tabela-cabecalho">
+    <h2 class="tabela-titulo">📚 Histórico Completo — Todos os Clientes Já Atendidos</h2>
+    <span class="tabela-meta">
+      {{ total_historico_clientes }} cliente(s) ·
+      {{ total_historico_atendimentos }} atendimento(s) concluído(s)
+    </span>
+  </div>
+
+  {% if historico_clientes %}
+
+  <div>
+    {% for item in historico_clientes %}
+
+    {# Cada bloco representa um cliente.
+       O id="bloco-{id}" permite identificar o elemento no JS. #}
+    <div id="bloco-{{ item.cliente_id }}">
+
+      <!-- Linha principal clicável do cliente -->
+      <!-- onclick chama toggleTimeline() definida em relatorio.js -->
+      <div class="historico-cliente-linha"
+           onclick="toggleTimeline({{ item.cliente_id }})"
+           style="cursor:pointer; padding:16px 20px; display:flex;
+                  align-items:center; gap:14px;
+                  border-bottom:1px solid var(--borda);
+                  transition:background-color .2s;">
+
+        <!-- Avatar com inicial do nome -->
+        <div class="avatar" style="flex-shrink:0;">
+          {{ item.nome[0]|upper if item.nome else '?' }}
+        </div>
+
+        <!-- Nome, badge de quantidade e e-mail -->
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-weight:700; font-size:15px;">{{ item.nome }}</span>
+            <span class="badge badge-concluido">
+              {{ item.qtd_atendimentos }}
+              {{ 'atendimento' if item.qtd_atendimentos == 1 else 'atendimentos' }}
+            </span>
+          </div>
+          <div style="font-size:12px; color:var(--texto-suave); margin-top:3px;">
+            {{ item.email }}
+          </div>
+        </div>
+
+        <!-- Datas do primeiro e último atendimento (oculto no mobile) -->
+        <div class="oculto-mobile"
+             style="text-align:right; font-size:12px; color:var(--texto-suave); flex-shrink:0;">
+          <div>
+            1º atend.:
+            <strong>
+              {{ item.primeiro_atendimento.strftime('%d/%m/%Y') if item.primeiro_atendimento else '—' }}
+            </strong>
+          </div>
+          <div>
+            Último:
+            <strong>
+              {{ item.ultimo_atendimento.strftime('%d/%m/%Y') if item.ultimo_atendimento else '—' }}
+            </strong>
+          </div>
+        </div>
+
+        <!-- Seta indicadora: ▼ fechado / ▲ aberto (girada pelo JS) -->
+        <span id="icone-{{ item.cliente_id }}"
+              style="font-size:18px; color:var(--texto-fraco);
+                     flex-shrink:0; transition:transform .3s;">▼</span>
+      </div>
+
+
+      <!-- Linha do tempo detalhada (oculta por padrão)
+           toggleTimeline() alterna display:none / display:block -->
+      <div id="timeline-{{ item.cliente_id }}"
+           style="display:none; background:var(--bege);
+                  padding:16px 20px 8px;
+                  border-bottom:1px solid var(--borda);">
+
+        <p style="font-size:11px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:.1em; color:var(--texto-suave); margin-bottom:14px;">
+          📅 Linha do Tempo —
+          {{ item.nome.split()[0] if item.nome and item.nome.strip() else item.nome }}
+        </p>
+
+        {# timeline[item.cliente_id] retorna a lista de atendimentos
+           individuais deste cliente, ordenados por data desc (app.py) #}
+        {% if item.cliente_id in timeline %}
+
+          {% for at in timeline[item.cliente_id] %}
+
+          <div style="display:flex; gap:12px; margin-bottom:14px; position:relative;">
+
+            {# Linha vertical conectando os pontos da timeline
+               (não renderiza no último item) #}
+            {% if not loop.last %}
+            <div style="position:absolute; left:11px; top:24px; bottom:-14px;
+                        width:2px; background:var(--borda); z-index:0;"></div>
+            {% endif %}
+
+            <!-- Ponto verde da timeline -->
+            <div style="width:24px; height:24px; border-radius:50%;
+                        background:var(--verde-bg);
+                        border:2px solid var(--verde-texto);
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:10px; flex-shrink:0; z-index:1; margin-top:2px;">✅</div>
+
+            <!-- Card com detalhes do atendimento individual -->
+            <div style="flex:1; background:var(--cartao);
+                        border:1px solid var(--borda);
+                        border-radius:var(--raio-sm); padding:10px 14px;">
+
+              <!-- Cabeçalho: status e data -->
+              <div style="display:flex; justify-content:space-between;
+                          gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                <span style="font-size:12px; font-weight:700; color:var(--verde-texto);">
+                  ✅ Concluído
+                </span>
+                <span style="font-size:11px; color:var(--texto-fraco);">
+                  {# at.data_criacao: objeto datetime do atendimento individual
+                     .strftime formata para o padrão brasileiro com hora #}
+                  {{ at.data_criacao.strftime('%d/%m/%Y às %H:%M') if at.data_criacao else '—' }}
+                </span>
+              </div>
+
+              <!-- Descrição truncada em 120 caracteres -->
+              <p style="font-size:13px; color:var(--texto); line-height:1.5; margin-bottom:6px;">
+                {{ at.descricao[:120] if at.descricao else '' }}{% if at.descricao and at.descricao|length > 120 %}…{% endif %}
+              </p>
+
+              <!-- Atendente e número do ticket
+                   at.atendente_nome vem do LEFT JOIN na Query 4 do app.py
+                   LEFT JOIN inclui atendimentos sem atendente (retorna None → '—') -->
+              <p style="font-size:11px; color:var(--texto-suave);">
+                👤 Atendente:
+                <strong>{{ at.atendente_nome if at.atendente_nome else '—' }}</strong>
+                · Ticket <span class="td-mono">#{{ at.id }}</span>
+              </p>
+
+            </div>
+          </div>
+
+          {% endfor %}
+
+        {% else %}
+          <p style="font-size:13px; color:var(--texto-fraco); padding-bottom:8px;">
+            Sem detalhes disponíveis.
+          </p>
+        {% endif %}
+
+      </div>
+    </div>
+
+    {% endfor %}
+  </div>
+
+  <!-- Rodapé com totalizadores do histórico completo -->
+  <div style="padding:14px 20px; background:var(--bege);
+              border-top:2px solid var(--borda);
+              display:flex; gap:24px; flex-wrap:wrap; font-size:13px;">
+    <span style="color:var(--texto-suave);">
+      Total histórico:
+      <strong style="color:var(--texto);">{{ total_historico_clientes }} clientes</strong>
+    </span>
+    <span style="color:var(--texto-suave);">
+      <strong style="color:var(--verde-texto);">{{ total_historico_atendimentos }}</strong>
+      atendimentos concluídos
+    </span>
+  </div>
+
+  {% else %}
+  <div class="tabela-vazia">
+    <div class="icone-vazio">📋</div>
+    <p>Nenhum atendimento concluído no sistema ainda.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+
+<!-- ============================================================
+     SEÇÃO 3 — EVOLUÇÃO MENSAL (últimos 12 meses)
+     historico = lista de dicts gerada no app.py:
+       [{ano, mes, mes_nome, clientes_unicos, total_atendimentos}, ...]
+     A barra visual é normalizada: o mês com mais atendimentos = 100%
+     ns.max_atend usa namespace() para modificar variável dentro do loop
+     ============================================================ -->
+{% if historico %}
+<div class="cartao-tabela animar atraso-4" style="margin-bottom:24px;">
+
+  <div class="tabela-cabecalho">
+    <h2 class="tabela-titulo">📈 Evolução Mensal — Últimos 12 Meses</h2>
+    <span class="tabela-meta">Atendimentos concluídos por mês</span>
+  </div>
+
+  <div class="tabela-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Mês / Ano</th>
+          <th style="text-align:center;">Clientes Únicos</th>
+          <th style="text-align:center;">Total Atend.</th>
+          <th>Barra Comparativa</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# namespace() permite alterar variável dentro de um loop Jinja2 #}
+        {% set ns = namespace(max_atend=1) %}
+        {% for h in historico %}
+          {% if h.total_atendimentos > ns.max_atend %}
+            {% set ns.max_atend = h.total_atendimentos %}
+          {% endif %}
+        {% endfor %}
+
+        {% for h in historico %}
+        {% set e_mes_atual = (h.mes == mes and h.ano == ano) %}
+        <tr {% if e_mes_atual %}style="background:var(--rosa-claro);"{% endif %}>
+
+          <td style="font-weight:{% if e_mes_atual %}700{% else %}400{% endif %};">
+            {% if e_mes_atual %}📌 {% endif %}{{ h.mes_nome }}/{{ h.ano }}
+          </td>
+
+          <td style="text-align:center;">
+            <span style="display:inline-block; padding:2px 10px;
+                         background:var(--azul-bg); color:var(--azul-texto);
+                         border-radius:999px; font-size:12px; font-weight:700;">
+              {{ h.clientes_unicos }}
+            </span>
+          </td>
+
+          <td style="text-align:center; font-weight:700; color:var(--verde-texto);">
+            {{ h.total_atendimentos }}
+          </td>
+
+          <!-- Barra visual proporcional ao maior mês -->
+          <td style="padding-right:24px; min-width:160px;">
+            <div style="height:10px; border-radius:999px;
+                        background:var(--bege-escuro); overflow:hidden;">
+              <div style="height:100%;
+                          width:{{ ((h.total_atendimentos / ns.max_atend) * 100)|round }}%;
+                          background:{% if e_mes_atual %}var(--rosa){% else %}var(--verde-texto){% endif %};
+                          border-radius:999px; transition:width .4s ease;">
+              </div>
+            </div>
+          </td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endif %}
+
+
+<!-- Botão de impressão -->
+<div style="margin-top:8px; text-align:right;" class="animar atraso-5">
+  <button onclick="window.print()" class="btn btn-secundario">
+    🖨️ Imprimir Relatório
+  </button>
+</div>
+
+{% endblock %}
+
+
+{# ============================================================
+   JS ESPECÍFICO DESTA PÁGINA
+   Carrega relatorio.js que contém toggleTimeline()
+   Inserido pelo base.html no final do body, após o DOM pronto.
+   ============================================================ #}
+{% block js_extra %}
+  <script src="{{ url_for('static', filename='js/relatorio.js') }}"></script>
 {% endblock %}
